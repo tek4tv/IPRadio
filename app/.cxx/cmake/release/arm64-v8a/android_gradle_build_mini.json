@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/Users/thinhha/Library/Android/sdk/ndk/21.0.6113669/build/cmake/platforms.cmake",
+    "/Users/thinhha/Library/Android/sdk/ndk/21.0.6113669/build/cmake/android.toolchain.cmake",
+    "/Users/thinhha/Documents/Outsource/RadioIP2/app/CMakeLists.txt"
+  ],
+  "cleanCommands": [
+    "/Users/thinhha/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja -C \"/Users/thinhha/Documents/Outsource/RadioIP2/app/.cxx/cmake/release/arm64-v8a\" clean"
+  ],
+  "buildTargetsCommand": "/Users/thinhha/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja  -C \"/Users/thinhha/Documents/Outsource/RadioIP2/app/.cxx/cmake/release/arm64-v8a\" {LIST_OF_TARGETS_TO_BUILD}",
+  "libraries": {
+    "serial_port-Release-arm64-v8a": {
+      "artifactName": "serial_port",
+      "buildCommand": "/Users/thinhha/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja -C \"/Users/thinhha/Documents/Outsource/RadioIP2/app/.cxx/cmake/release/arm64-v8a\" serial_port",
+      "abi": "arm64-v8a",
+      "output": "/Users/thinhha/Documents/Outsource/RadioIP2/app/build/intermediates/cmake/release/obj/arm64-v8a/libserial_port.so",
+      "runtimeFiles": []
+    }
+  }
+}

@@ -1,0 +1,7 @@
+Executable : /Users/thinhha/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja
+arguments : 
+-C
+/Users/thinhha/Documents/Outsource/RadioIP2/app/.cxx/cmake/release/x86_64
+serial_port
+jvmArgs : 
+

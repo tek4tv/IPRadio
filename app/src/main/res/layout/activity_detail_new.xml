@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    android:focusable="true"
+    android:gravity="center_vertical|center_horizontal"
+    android:keepScreenOn="true"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <SurfaceView
+            android:id="@+id/surface"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/flShimmer"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/rlVideoPlayer">
+
+        <EditText
+            android:id="@+id/edtReceive"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="receive BE" />
+
+        <EditText
+            android:id="@+id/edtReceiveDevice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="receive device" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/webDetail"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/white"
+            android:scrollbars="none" />
+
+
+    </LinearLayout>
+
+
+</LinearLayout>

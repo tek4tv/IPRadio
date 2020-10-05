@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/Users/thinhha/Library/Android/sdk/ndk/21.0.6113669/build/cmake/platforms.cmake",
+    "/Users/thinhha/Library/Android/sdk/ndk/21.0.6113669/build/cmake/android.toolchain.cmake",
+    "/Users/thinhha/Documents/Outsource/RadioIP2/app/CMakeLists.txt"
+  ],
+  "cleanCommands": [
+    "/Users/thinhha/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja -C \"/Users/thinhha/Documents/Outsource/RadioIP2/app/.cxx/cmake/release/x86\" clean"
+  ],
+  "buildTargetsCommand": "/Users/thinhha/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja  -C \"/Users/thinhha/Documents/Outsource/RadioIP2/app/.cxx/cmake/release/x86\" {LIST_OF_TARGETS_TO_BUILD}",
+  "libraries": {
+    "serial_port-Release-x86": {
+      "artifactName": "serial_port",
+      "buildCommand": "/Users/thinhha/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja -C \"/Users/thinhha/Documents/Outsource/RadioIP2/app/.cxx/cmake/release/x86\" serial_port",
+      "abi": "x86",
+      "output": "/Users/thinhha/Documents/Outsource/RadioIP2/app/build/intermediates/cmake/release/obj/x86/libserial_port.so",
+      "runtimeFiles": []
+    }
+  }
+}

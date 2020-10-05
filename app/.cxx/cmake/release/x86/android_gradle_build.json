@@ -1,0 +1,43 @@
+{
+  "stringTable": {
+    "0": "/Users/thinhha/Documents/Outsource/RadioIP2/app/.cxx/cmake/release/x86",
+    "1": "--target=i686-none-linux-android23 --gcc-toolchain=/Users/thinhha/Library/Android/sdk/ndk/21.0.6113669/toolchains/llvm/prebuilt/darwin-x86_64 --sysroot=/Users/thinhha/Library/Android/sdk/ndk/21.0.6113669/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -Dserial_port_EXPORTS -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -mstackrealign -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security -O2 -DNDEBUG -fPIC"
+  },
+  "buildFiles": [
+    "/Users/thinhha/Library/Android/sdk/ndk/21.0.6113669/build/cmake/platforms.cmake",
+    "/Users/thinhha/Library/Android/sdk/ndk/21.0.6113669/build/cmake/android.toolchain.cmake",
+    "/Users/thinhha/Documents/Outsource/RadioIP2/app/CMakeLists.txt"
+  ],
+  "cleanCommands": [
+    "/Users/thinhha/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja -C \"/Users/thinhha/Documents/Outsource/RadioIP2/app/.cxx/cmake/release/x86\" clean"
+  ],
+  "buildTargetsCommand": "/Users/thinhha/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja  -C \"/Users/thinhha/Documents/Outsource/RadioIP2/app/.cxx/cmake/release/x86\" {LIST_OF_TARGETS_TO_BUILD}",
+  "libraries": {
+    "serial_port-Release-x86": {
+      "buildCommand": "/Users/thinhha/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja -C \"/Users/thinhha/Documents/Outsource/RadioIP2/app/.cxx/cmake/release/x86\" serial_port",
+      "buildType": "release",
+      "toolchain": "3601307930",
+      "abi": "x86",
+      "artifactName": "serial_port",
+      "files": [
+        {
+          "src": "/Users/thinhha/Documents/Outsource/RadioIP2/app/src/main/cpp/SerialPort.cpp",
+          "flagsOrdinal": 1,
+          "workingDirectoryOrdinal": 0
+        }
+      ],
+      "headers": [],
+      "output": "/Users/thinhha/Documents/Outsource/RadioIP2/app/build/intermediates/cmake/release/obj/x86/libserial_port.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {
+    "3601307930": {
+      "cppCompilerExecutable": "/Users/thinhha/Library/Android/sdk/ndk/21.0.6113669/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}
