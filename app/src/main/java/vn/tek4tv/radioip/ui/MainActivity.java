@@ -895,11 +895,11 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                     i = 0;
                     initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), true);
                 }
-                else {
-                    playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath());
-                    i = i + 1;
-                    initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
-                }
+//                else {
+//                    playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath());
+//                    i = i + 1;
+//                    initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
+//                }
             }
         };
         registerReceiver(myBroadcastReceiver, new IntentFilter(ConfigUtil.ACTION_SCHEDULED));
