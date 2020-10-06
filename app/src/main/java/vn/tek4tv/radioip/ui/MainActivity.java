@@ -221,11 +221,11 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
             e.printStackTrace();
         }
         if (i + 1 == devicesList.size()) {
-            mMediaPlayer.stop();
+            playURLVideo(devicesList.get(i).getPath() , true);
             i = 0;
             initAlarm(devicesList.get(i).getStart(), true);
         } else {
-            playURLVideo(devicesList.get(i).getPath());
+            playURLVideo(devicesList.get(i).getPath() , true);
             i = i + 1;
             initAlarm(devicesList.get(i).getStart(), false);
         }
@@ -340,26 +340,26 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                         break;
                     case Status.NEXT:
                         i++;
-                        playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath());
+                        playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(), false);
                         callBackUpdateList(false);
                         break;
                     case Status.PREVIEW:
                         i--;
-                        playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath());
+                        playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(), false);
                         callBackUpdateList(false);
                         break;
                     case Status.JUMP:
                         edtReceive.setText(message);
                         i = Integer.parseInt(reponseHub.getMessage().trim()) - 1;
                         volume = reponseHub.getVolume();
-                        playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath());
+                        playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(), false);
                         callBackUpdateList(false);
                         break;
                     case Status.LIVE:
                         // jump live
                         edtReceive.setText(message);
                         volume = reponseHub.getVolume();
-                        playURLVideo(reponseHub.getMessage().trim());
+                        playURLVideo(reponseHub.getMessage().trim(),false);
                         callBackUpdateList(false);
                         break;
                     case Status.UPDATE_STATUS:
@@ -472,7 +472,7 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
     @Override
     public void onChooseDevice(Playlist loginDevice) {
         // on test
-        playURLVideo(loginDevice.getPath());
+        playURLVideo(loginDevice.getPath(), false);
     }
 
     @Override
@@ -507,11 +507,11 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                     i = Utils.getCurrentPosition(mainViewModel.lstLiveData.getValue());
                     Log.d("vao day 1","vao day 1" + i);
                     if (i + 1 == mainViewModel.lstLiveData.getValue().size()) {
-                        mMediaPlayer.stop();
+                        playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(),true);
                         i = 0;
                         initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), true);
                     } else {
-                        playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath());
+                        playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(),true);
                         i = i + 1;
                         initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
                     }
@@ -602,22 +602,22 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
         }
     }
 
-    private void playURLVideo(String videoURL) {
+    private void playURLVideo(String videoURL , boolean isRestart) {
         try {
-//            try {
-//                for (int j = 0; j < mainViewModel.lstLiveData.getValue().size(); j++) {
-//                    mainViewModel.lstLiveData.getValue().get(j).setCheck(false);
-//                }
-//                for (int k = 0; k < mainViewModel.lstLiveData.getValue().size(); k++) {
-//                    if (mainViewModel.lstLiveData.getValue().get(k).getPath().equals(videoURL)) {
-//                        mainViewModel.lstLiveData.getValue().get(k).setCheck(true);
-//                        break;
-//                    }
-//                }
-//                adapter.notifyDataSetChanged();
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
+            try {
+                for (int j = 0; j < mainViewModel.lstLiveData.getValue().size(); j++) {
+                    mainViewModel.lstLiveData.getValue().get(j).setCheck(false);
+                }
+                for (int k = 0; k < mainViewModel.lstLiveData.getValue().size(); k++) {
+                    if (mainViewModel.lstLiveData.getValue().get(k).getPath().equals(videoURL)) {
+                        mainViewModel.lstLiveData.getValue().get(k).setCheck(true);
+                        break;
+                    }
+                }
+                adapter.notifyDataSetChanged();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             if (videoURL.startsWith("fm") || videoURL.startsWith("am")) {
                 mMediaPlayer.stop();
                 isFMAM = true;
@@ -643,6 +643,11 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                 Media m = new Media(libvlc, Uri.parse(videoURL));
                 mMediaPlayer.setMedia(m);
                 mMediaPlayer.play();
+                if(!videoURL.startsWith("rtsp")){
+                    if(isRestart){
+                        mMediaPlayer.setPosition(Utils.getTimeBettween(mainViewModel.lstLiveData.getValue().get(i).getStart() , Utils.getTimeCurrent()) / mMediaPlayer.getLength());
+                    }
+                }
                 mMediaPlayer.setVolume(100);
                 isPlayVODOrLive = true;
                 writeToDevice(buildWriteMessage(Define.SOURCE_AUDIO, "2"));
@@ -890,16 +895,17 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
 //                } catch (Exception e) {
 //                    e.printStackTrace();
 //                }
+                i = Utils.getCurrentPosition(mainViewModel.lstLiveData.getValue());
                 mMediaPlayer.stop();
                 if (i + 1 == mainViewModel.lstLiveData.getValue().size()) {
+                    playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(),false);
                     i = 0;
                     initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), true);
+                } else {
+                    playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(),false);
+                    i = i + 1;
+                    initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
                 }
-//                else {
-//                    playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath());
-//                    i = i + 1;
-//                    initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
-//                }
             }
         };
         registerReceiver(myBroadcastReceiver, new IntentFilter(ConfigUtil.ACTION_SCHEDULED));

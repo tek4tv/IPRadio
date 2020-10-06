@@ -69,24 +69,27 @@ public class MainViewModel extends ViewModel {
 //        for(int j = 0 ; j < list.size(); j++){
 //            list.get(j).setDuration("00:01:00");
 //        }
-//        list.get(0).setStart("21:53:00");
+//        list.get(0).setStart("17:40:00");
         for(int i = 1 ; i < list.size() ; i++){
             Playlist playlist = list.get(i);
-            String dateStr = list.get(i - 1).getStart();
-            String duration = list.get(i - 1).getDuration();
+//            String dateStr = list.get(i - 1).getStart();
+//            String duration = list.get(i - 1).getDuration();
             try{
-                Date date = simpleDateFormat.parse(dateStr);
-                Date dateduration = simpleDateFormat.parse(duration);
-                Calendar rightduration  = Calendar.getInstance();
-                rightduration.setTime(dateduration);
-                Calendar rightNow  = Calendar.getInstance();
-                rightNow.setTime(date);
-                rightNow.add(Calendar.HOUR_OF_DAY, rightduration.get(Calendar.HOUR_OF_DAY));
-                rightNow.add(Calendar.MINUTE, rightduration.get(Calendar.MINUTE));
-                rightNow.add(Calendar.SECOND, rightduration.get(Calendar.SECOND));
-                String starTime = (rightNow.get(Calendar.HOUR_OF_DAY) < 10 ? ("0" + rightNow.get(Calendar.HOUR_OF_DAY)) : rightNow.get(Calendar.HOUR_OF_DAY)) + ":" + (rightNow.get(Calendar.MINUTE) < 10 ? ("0" + rightNow.get(Calendar.MINUTE)) : rightNow.get(Calendar.MINUTE)) + ":" + (rightNow.get(Calendar.SECOND) < 10 ? ("0" + rightNow.get(Calendar.SECOND)) : rightNow.get(Calendar.SECOND));
-                list.get(i - 1).setEnd(starTime);
-                playlist.setStart(starTime);
+//                Date date = simpleDateFormat.parse(dateStr);
+//                Date dateduration = simpleDateFormat.parse(duration);
+//                Calendar rightduration  = Calendar.getInstance();
+//                rightduration.setTime(dateduration);
+//                Calendar rightNow  = Calendar.getInstance();
+//                rightNow.setTime(date);
+//                rightNow.add(Calendar.HOUR_OF_DAY, rightduration.get(Calendar.HOUR_OF_DAY));
+//                rightNow.add(Calendar.MINUTE, rightduration.get(Calendar.MINUTE));
+//                rightNow.add(Calendar.SECOND, rightduration.get(Calendar.SECOND));
+//                String starTime = (rightNow.get(Calendar.HOUR_OF_DAY) < 10 ? ("0" + rightNow.get(Calendar.HOUR_OF_DAY)) :
+//                        rightNow.get(Calendar.HOUR_OF_DAY)) + ":" + (rightNow.get(Calendar.MINUTE) < 10 ? ("0" + rightNow.get(Calendar.MINUTE)) :
+//                        rightNow.get(Calendar.MINUTE)) + ":" + (rightNow.get(Calendar.SECOND) < 10 ? ("0" + rightNow.get(Calendar.SECOND)) :
+//                        rightNow.get(Calendar.SECOND));
+                list.get(i - 1).setEnd(playlist.getStart());
+//                playlist.setStart(starTime);
             }catch (Exception e){
                 e.printStackTrace();
             }
