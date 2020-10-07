@@ -1,23 +1,34 @@
 package vn.tek4tv.radioip.ui;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
+import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
+import android.webkit.JsResult;
+import android.webkit.WebChromeClient;
+import android.webkit.WebView;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -105,13 +116,18 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
     // view
     private EditText edtReceive;
 
+    //webview
+    private WebView wv;
+    private String urlWv = "";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail_new);
         mSurface = (SurfaceView) findViewById(R.id.surface);
         holder = mSurface.getHolder();
-        rcvPlayList = findViewById(R.id.webDetail);
+        //rcvPlayList = findViewById(R.id.webView);
+        wv = (WebView) findViewById(R.id.webView);
         edtReceive = findViewById(R.id.edtReceive);
         mainViewModel = new ViewModelProvider.AndroidViewModelFactory(getApplication()).create(MainViewModel.class);
 
@@ -125,6 +141,7 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
         }
         // connect hub
         initPlayer();
+        setUpWV();
         if (InternetConnection.checkConnection(this)) {
             hubConnection = HubConnectionBuilder.create(NetworkUtils.URL_HUB).build();
             Log.d("vaoday", "vaoday");
@@ -154,6 +171,80 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
             } catch (Exception e) {
 
             }
+        }
+    }
+
+    @SuppressLint("JavascriptInterface")
+    private void setUpWV() {
+        wv.getSettings().setLoadsImagesAutomatically(true);
+        wv.getSettings().setJavaScriptEnabled(true);
+        wv.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
+        wv.getSettings().setMediaPlaybackRequiresUserGesture(false);
+        wv.setScrollbarFadingEnabled(true);
+        wv.setScrollContainer(false);
+        wv.setWebChromeClient(new MainViewClient());
+        wv.addJavascriptInterface(new WebViewJavaScriptInterface(this), "MainActivity");
+        //wv.getSettings().setAppCacheEnabled(false);
+        //wv.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+        //wv.clearCache(true);
+        wv.getSettings().setDomStorageEnabled(true);
+        if (Build.VERSION.SDK_INT >= 21) {
+            CookieManager cookieManager = CookieManager.getInstance();
+            cookieManager.setAcceptThirdPartyCookies(wv, true);
+        }
+        wv.loadUrl("https://iotdevice.tek4tv.vn/player?id=" + Utils.getDeviceId(this));
+//            wv.loadUrl("file:///android_asset/test.html");
+    }
+
+    private class MainViewClient extends WebChromeClient {
+        @Override
+        public boolean onJsAlert(WebView view, String url, String message, JsResult result) {
+            result.confirm();
+            Log.d("Alert", "messageCategory" + message);
+            if (message != null && !message.equals("")) {
+                if (message.contains("warning_")) {
+                    Toast.makeText(MainActivity.this, message.replace("warning_", ""), Toast.LENGTH_SHORT).show();
+                } else {
+                    AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
+                    alertDialog.setTitle("");
+                    alertDialog.setMessage(message);
+                    alertDialog.setPositiveButton("Đồng ý", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.cancel();
+                        }
+                    });
+//                    alertDialog.setNegativeButton("Huỷ", new DialogInterface.OnClickListener() {
+//                        public void onClick(DialogInterface dialog, int which) {
+//                            dialog.cancel();
+//                        }
+//                    });
+                    alertDialog.show();
+                }
+            }
+            return true;
+        }
+    }
+
+    public class WebViewJavaScriptInterface {
+
+        private Context context;
+
+        /*
+         * Need a reference to the context in order to sent a post message
+         */
+        public WebViewJavaScriptInterface(Context context) {
+            this.context = context;
+        }
+
+        /*
+         * This method can be called from Android. @JavascriptInterface
+         * required after SDK version 17.
+         */
+
+        @JavascriptInterface
+        public void goToDetail(String url,float position,boolean isLive) {
+            Log.d("position", url);
+            playURLVideoPosition(url, position, isLive);
         }
     }
 
@@ -235,13 +326,18 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
         } else {
             adapter = new PlayListAdapter(this, devicesList, this);
             LinearLayoutManager layoutManagerJob = new LinearLayoutManager(this);
-            rcvPlayList.setLayoutManager(layoutManagerJob);
-            rcvPlayList.setItemAnimator(new DefaultItemAnimator());
-            rcvPlayList.addItemDecoration(new DividerItemDecoration(this, layoutManagerJob.getOrientation()));
-            rcvPlayList.setAdapter(adapter);
+//            rcvPlayList.setLayoutManager(layoutManagerJob);
+  //          rcvPlayList.setItemAnimator(new DefaultItemAnimator());
+    //        rcvPlayList.addItemDecoration(new DividerItemDecoration(this, layoutManagerJob.getOrientation()));
+      //      rcvPlayList.setAdapter(adapter);
         }
 
     }
+
+
+
+
+
 
     private void initSerialPort() throws IOException {
         serialPort = new SerialPort(new File(UART_NAME), 9600, 0);
@@ -602,7 +698,7 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
         }
     }
 
-    private void playURLVideo(String videoURL , boolean isRestart) {
+    private void playURLVideo(String videoURL, boolean isRestart) {
         try {
             try {
                 for (int j = 0; j < mainViewModel.lstLiveData.getValue().size(); j++) {
@@ -646,6 +742,63 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                 if(!videoURL.startsWith("rtsp")){
                     if(isRestart){
                         mMediaPlayer.setPosition(Utils.getTimeBettween(mainViewModel.lstLiveData.getValue().get(i).getStart() , Utils.getTimeCurrent()) / mMediaPlayer.getLength());
+                    }
+                }
+                mMediaPlayer.setVolume(100);
+                isPlayVODOrLive = true;
+                writeToDevice(buildWriteMessage(Define.SOURCE_AUDIO, "2"));
+            }
+
+        } catch (Exception e) {
+            Log.e(LOG_TAG, "Error Play URL Video: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void playURLVideoPosition(String videoURL, float position , boolean isRestart) {
+        try {
+            try {
+                for (int j = 0; j < mainViewModel.lstLiveData.getValue().size(); j++) {
+                    mainViewModel.lstLiveData.getValue().get(j).setCheck(false);
+                }
+                for (int k = 0; k < mainViewModel.lstLiveData.getValue().size(); k++) {
+                    if (mainViewModel.lstLiveData.getValue().get(k).getPath().equals(videoURL)) {
+                        mainViewModel.lstLiveData.getValue().get(k).setCheck(true);
+                        break;
+                    }
+                }
+                adapter.notifyDataSetChanged();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            if (videoURL.startsWith("fm") || videoURL.startsWith("am")) {
+                mMediaPlayer.stop();
+                isFMAM = true;
+                String messageHub = videoURL;
+                Log.d(TAG, "FM ==> " + messageHub);
+                if (messageHub != null && messageHub.split(",").length > 2) {
+                    String[] status = messageHub.split(",");
+                    if (status.length > 2) {
+                        String mode = status[0];
+                        String frequency = status[1];
+                        volume = status[2];
+                        if (mode.equals("fm")) {
+                            //check case fm
+                            writeToDevice(buildWriteMessage(Define.FM, frequency));
+                        } else {
+                            // am
+                            writeToDevice(buildWriteMessage(Define.AM, frequency));
+                        }
+                    }
+                }
+            } else {
+                mMediaPlayer.stop();
+                Media m = new Media(libvlc, Uri.parse(videoURL));
+                mMediaPlayer.setMedia(m);
+                mMediaPlayer.play();
+                if(!videoURL.startsWith("rtsp")){
+                    if(isRestart){
+                        mMediaPlayer.setPosition(position);
                     }
                 }
                 mMediaPlayer.setVolume(100);
