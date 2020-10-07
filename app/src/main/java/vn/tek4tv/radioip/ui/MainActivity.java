@@ -192,7 +192,8 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
             CookieManager cookieManager = CookieManager.getInstance();
             cookieManager.setAcceptThirdPartyCookies(wv, true);
         }
-        wv.loadUrl("https://iotdevice.tek4tv.vn/player?id=" + Utils.getDeviceId(this));
+        //wv.loadUrl("https://iotdevice.tek4tv.vn/player?id=" + Utils.getDeviceId(this));
+        wv.loadUrl("https://iotdevice.tek4tv.vn/player?id=" + "B0:02:47:2E:38:54");
 //            wv.loadUrl("file:///android_asset/test.html");
     }
 
@@ -757,6 +758,7 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
 
     private void playURLVideoPosition(String videoURL, float position , boolean isRestart) {
         try {
+            Log.d("Restart", String.valueOf(isRestart));
             try {
                 for (int j = 0; j < mainViewModel.lstLiveData.getValue().size(); j++) {
                     mainViewModel.lstLiveData.getValue().get(j).setCheck(false);
@@ -795,10 +797,12 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                 mMediaPlayer.stop();
                 Media m = new Media(libvlc, Uri.parse(videoURL));
                 mMediaPlayer.setMedia(m);
+                mMediaPlayer.setVolume(0);
                 mMediaPlayer.play();
                 if(!videoURL.startsWith("rtsp")){
                     if(isRestart){
-                        mMediaPlayer.setPosition(position);
+                        //mMediaPlayer.setPosition(position);
+                        mMediaPlayer.setTime((long)position);
                     }
                 }
                 mMediaPlayer.setVolume(100);

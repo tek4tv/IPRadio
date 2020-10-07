@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Build;
 import android.provider.Settings;
+import android.util.Log;
 
 import androidx.annotation.RequiresApi;
 
@@ -34,6 +35,7 @@ public class Utils {
     @SuppressLint("HardwareIds")
     public static String getDeviceId(Context context) {
         String deviceId = ConfigUtil.getString(context, DEVICE_ID, null);
+        Log.d("sanhtq", deviceId);
         if (deviceId == null) {
             deviceId = getMacAddr();
             ConfigUtil.putString(context, DEVICE_ID, deviceId);
