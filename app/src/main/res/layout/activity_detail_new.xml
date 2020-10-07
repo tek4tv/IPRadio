@@ -44,13 +44,11 @@
             android:layout_height="wrap_content"
             android:hint="receive device" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/webDetail"
-            android:layout_width="match_parent"
+        <WebView android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@android:color/white"
-            android:scrollbars="none" />
-
+            android:id="@+id/webView"
+            android:scrollbars="none"
+            />
 
     </LinearLayout>
 
