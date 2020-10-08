@@ -181,18 +181,21 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
         wv.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
         wv.getSettings().setMediaPlaybackRequiresUserGesture(false);
         wv.setScrollbarFadingEnabled(true);
+        wv.getSettings().setDomStorageEnabled(true);
         wv.setScrollContainer(false);
         wv.setWebChromeClient(new MainViewClient());
         wv.addJavascriptInterface(new WebViewJavaScriptInterface(this), "MainActivity");
         //wv.getSettings().setAppCacheEnabled(false);
         //wv.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
         //wv.clearCache(true);
-        wv.getSettings().setDomStorageEnabled(true);
+
+
         if (Build.VERSION.SDK_INT >= 21) {
             CookieManager cookieManager = CookieManager.getInstance();
             cookieManager.setAcceptThirdPartyCookies(wv, true);
         }
-        wv.loadUrl("https://iotdevice.tek4tv.vn/player?id=" + Utils.getDeviceId(this));
+        //wv.loadUrl("https://iotdevice.tek4tv.vn/player?id=" + Utils.getDeviceId(this));
+        wv.loadUrl("https://iotdevice.tek4tv.vn/player?id=B0:02:47:2E:38:54");
 //            wv.loadUrl("file:///android_asset/test.html");
     }
 
@@ -243,7 +246,7 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
 
         @JavascriptInterface
         public void goToDetail(String url,float position,boolean isLive) {
-            Log.d("position", url);
+            Log.d("position", String.valueOf(position));
             playURLVideoPosition(url, position, isLive);
         }
     }
@@ -795,11 +798,13 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                 mMediaPlayer.stop();
                 Media m = new Media(libvlc, Uri.parse(videoURL));
                 mMediaPlayer.setMedia(m);
+                mMediaPlayer.setVolume(0);
                 mMediaPlayer.play();
                 if(!videoURL.startsWith("rtsp")){
                     if(isRestart){
-                        mMediaPlayer.setPosition(position);
+                        //mMediaPlayer.setPosition(position);
                     }
+                    mMediaPlayer.setTime((long)20000);
                 }
                 mMediaPlayer.setVolume(100);
                 isPlayVODOrLive = true;
