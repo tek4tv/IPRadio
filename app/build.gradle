@@ -79,4 +79,6 @@ dependencies {
 
     // ket noi android thing
     compileOnly 'com.google.android.things:androidthings:0.1-devpreview'
+    implementation 'com.google.android.exoplayer:exoplayer:2.10.4'
+
 }

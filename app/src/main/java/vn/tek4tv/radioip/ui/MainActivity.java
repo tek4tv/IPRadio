@@ -1,37 +1,57 @@
 package vn.tek4tv.radioip.ui;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import android.annotation.SuppressLint;
+import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
-import android.webkit.CookieManager;
-import android.webkit.JavascriptInterface;
-import android.webkit.JsResult;
-import android.webkit.WebChromeClient;
-import android.webkit.WebView;
 import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.exoplayer2.DefaultLoadControl;
+import com.google.android.exoplayer2.ExoPlaybackException;
+import com.google.android.exoplayer2.ExoPlayer;
+import com.google.android.exoplayer2.ExoPlayerFactory;
+import com.google.android.exoplayer2.LoadControl;
+import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.Timeline;
+import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
+import com.google.android.exoplayer2.extractor.ExtractorsFactory;
+import com.google.android.exoplayer2.source.ExtractorMediaSource;
+import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.TrackGroupArray;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
+import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
+import com.google.android.exoplayer2.trackselection.TrackSelector;
+import com.google.android.exoplayer2.upstream.DataSource;
+import com.google.android.exoplayer2.upstream.DataSpec;
+import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
+import com.google.android.exoplayer2.upstream.FileDataSource;
+import com.google.android.exoplayer2.util.Util;
 import com.google.gson.Gson;
 import com.microsoft.signalr.HubConnection;
 import com.microsoft.signalr.HubConnectionBuilder;
@@ -49,7 +69,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Formatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -116,9 +138,63 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
     // view
     private EditText edtReceive;
 
-    //webview
-    private WebView wv;
-    private String urlWv = "";
+    // get location
+    private final int PERMISSION_ID = 44;
+    private Location mlocation;
+
+    // player vod
+    private SimpleExoPlayer exoPlayer;
+    private ExoPlayer.EventListener eventListener = new ExoPlayer.EventListener() {
+
+
+        @Override
+        public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+            Log.i(TAG,"onTracksChanged");
+        }
+
+        @Override
+        public void onLoadingChanged(boolean isLoading) {
+            Log.i(TAG,"onLoadingChanged");
+        }
+
+        @Override
+        public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+            Log.i(TAG,"onPlayerStateChanged: playWhenReady = "+String.valueOf(playWhenReady)
+                    +" playbackState = "+playbackState);
+            switch (playbackState){
+                case ExoPlayer.STATE_ENDED:
+                    Log.i(TAG,"Playback ended!");
+                    //Stop playback and return to start position
+                    setPlayPause(false);
+                    exoPlayer.seekTo(0);
+                    break;
+                case ExoPlayer.STATE_READY:
+                    Log.i(TAG,"ExoPlayer ready! pos: "+exoPlayer.getCurrentPosition()
+                            +" max: "+stringForTime((int)exoPlayer.getDuration()));
+                    setProgress();
+                    break;
+                case ExoPlayer.STATE_BUFFERING:
+                    Log.i(TAG,"Playback buffering!");
+                    break;
+                case ExoPlayer.STATE_IDLE:
+                    Log.i(TAG,"ExoPlayer idle!");
+                    break;
+            }
+        }
+
+        @Override
+        public void onPlayerError(ExoPlaybackException error) {
+            Log.i(TAG,"onPlaybackError: "+error.getMessage());
+        }
+
+
+    };
+
+    private SeekBar seekPlayerProgress;
+    private Handler handler;
+    private ImageButton btnPlay;
+    private TextView txtCurrentTime, txtEndTime;
+    private boolean isPlaying = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -126,11 +202,9 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
         setContentView(R.layout.activity_detail_new);
         mSurface = (SurfaceView) findViewById(R.id.surface);
         holder = mSurface.getHolder();
-        //rcvPlayList = findViewById(R.id.webView);
-        wv = (WebView) findViewById(R.id.webView);
+        rcvPlayList = findViewById(R.id.webDetail);
         edtReceive = findViewById(R.id.edtReceive);
         mainViewModel = new ViewModelProvider.AndroidViewModelFactory(getApplication()).create(MainViewModel.class);
-
         Thread.setDefaultUncaughtExceptionHandler(new MyExceptionHandler(this));
         NetworkUtils.getInstance().startNetworkListener(this);
         // connect test device
@@ -141,7 +215,6 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
         }
         // connect hub
         initPlayer();
-        setUpWV();
         if (InternetConnection.checkConnection(this)) {
             hubConnection = HubConnectionBuilder.create(NetworkUtils.URL_HUB).build();
             Log.d("vaoday", "vaoday");
@@ -172,111 +245,7 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
 
             }
         }
-    }
-
-    @SuppressLint("JavascriptInterface")
-    private void setUpWV() {
-        wv.getSettings().setLoadsImagesAutomatically(true);
-        wv.getSettings().setJavaScriptEnabled(true);
-        wv.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
-        wv.getSettings().setMediaPlaybackRequiresUserGesture(false);
-        wv.setScrollbarFadingEnabled(true);
-        wv.getSettings().setDomStorageEnabled(true);
-        wv.setScrollContainer(false);
-        wv.setWebChromeClient(new MainViewClient());
-        wv.addJavascriptInterface(new WebViewJavaScriptInterface(this), "MainActivity");
-        //wv.getSettings().setAppCacheEnabled(false);
-        //wv.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
-        //wv.clearCache(true);
-
-
-        if (Build.VERSION.SDK_INT >= 21) {
-            CookieManager cookieManager = CookieManager.getInstance();
-            cookieManager.setAcceptThirdPartyCookies(wv, true);
-        }
-        //wv.loadUrl("https://iotdevice.tek4tv.vn/player?id=" + Utils.getDeviceId(this));
-        wv.loadUrl("https://iotdevice.tek4tv.vn/player?id=B0:02:47:2E:38:54");
-//            wv.loadUrl("file:///android_asset/test.html");
-    }
-
-    private class MainViewClient extends WebChromeClient {
-        @Override
-        public boolean onJsAlert(WebView view, String url, String message, JsResult result) {
-            result.confirm();
-            Log.d("Alert", "messageCategory" + message);
-            if (message != null && !message.equals("")) {
-                if (message.contains("warning_")) {
-                    Toast.makeText(MainActivity.this, message.replace("warning_", ""), Toast.LENGTH_SHORT).show();
-                } else {
-                    AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                    alertDialog.setTitle("");
-                    alertDialog.setMessage(message);
-                    alertDialog.setPositiveButton("Đồng ý", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int which) {
-                            dialog.cancel();
-                        }
-                    });
-//                    alertDialog.setNegativeButton("Huỷ", new DialogInterface.OnClickListener() {
-//                        public void onClick(DialogInterface dialog, int which) {
-//                            dialog.cancel();
-//                        }
-//                    });
-                    alertDialog.show();
-                }
-            }
-            return true;
-        }
-    }
-
-    public class WebViewJavaScriptInterface {
-
-        private Context context;
-
-        /*
-         * Need a reference to the context in order to sent a post message
-         */
-        public WebViewJavaScriptInterface(Context context) {
-            this.context = context;
-        }
-
-        /*
-         * This method can be called from Android. @JavascriptInterface
-         * required after SDK version 17.
-         */
-
-        @JavascriptInterface
-        public void goToDetail(String url, float position, boolean isLive) {
-            Log.d("position", String.valueOf(position));
-            playURLVideoPosition(url, position, isLive);
-        }
-
-        @JavascriptInterface
-        public void switchToTuner(String messageHub, boolean ipMode) {
-            Log.d("FM mode:", messageHub);
-            if (ipMode) {
-                isPlayVODOrLive = true;
-                isFMAM = false;
-                writeToDevice(buildWriteMessage(Define.SOURCE_AUDIO, "2"));
-            } else {
-                isFMAM = true;
-                isPlayVODOrLive = false;
-                if (messageHub != null && messageHub.split(",").length > 2) {
-                    String[] status = messageHub.split(",");
-                    if (status.length > 2) {
-                        String mode = status[0];
-                        String frequency = status[1];
-                        volume = status[2];
-                        if (mode.equals("fm")) {
-                            //check case fm
-                            writeToDevice(buildWriteMessage(Define.FM, frequency));
-                        } else {
-                            // am
-                            writeToDevice(buildWriteMessage(Define.AM, frequency));
-                        }
-                    }
-                }
-            }
-        }
+        checkLocation();
     }
 
     private void connectHub() {
@@ -335,19 +304,21 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
 
     private void createRecyclerView(List<Playlist> devicesList) {
         i = Utils.getCurrentPosition(devicesList);
-        Log.d("vao day 0","vao day 0" + i);
+        Log.d("vao day 0", "vao day 0" + i);
 
         try {
             mMediaPlayer.stop();
         } catch (Exception e) {
             e.printStackTrace();
         }
-        if (i + 1 == devicesList.size()) {
-            playURLVideo(devicesList.get(i).getPath() , true);
+        if (i == -1) {
             i = 0;
-            initAlarm(devicesList.get(i).getStart(), true);
+            initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), true);
+        } else if (i == -2) {
+            i = 0;
+            initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
         } else {
-            playURLVideo(devicesList.get(i).getPath() , true);
+            playURLVideo(devicesList.get(i).getPath(), true);
             i = i + 1;
             initAlarm(devicesList.get(i).getStart(), false);
         }
@@ -357,18 +328,13 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
         } else {
             adapter = new PlayListAdapter(this, devicesList, this);
             LinearLayoutManager layoutManagerJob = new LinearLayoutManager(this);
-//            rcvPlayList.setLayoutManager(layoutManagerJob);
-  //          rcvPlayList.setItemAnimator(new DefaultItemAnimator());
-    //        rcvPlayList.addItemDecoration(new DividerItemDecoration(this, layoutManagerJob.getOrientation()));
-      //      rcvPlayList.setAdapter(adapter);
+            rcvPlayList.setLayoutManager(layoutManagerJob);
+            rcvPlayList.setItemAnimator(new DefaultItemAnimator());
+            rcvPlayList.addItemDecoration(new DividerItemDecoration(this, layoutManagerJob.getOrientation()));
+            rcvPlayList.setAdapter(adapter);
         }
 
     }
-
-
-
-
-
 
     private void initSerialPort() throws IOException {
         serialPort = new SerialPort(new File(UART_NAME), 9600, 0);
@@ -414,7 +380,8 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
             mTimerWatchlog.cancel();
         hubConnection = null;
         releasePlayer();
-        if(myBroadcastReceiver != null){
+        exoPlayer.release();
+        if (myBroadcastReceiver != null) {
             unregisterReceiver(myBroadcastReceiver);
         }
     }
@@ -486,30 +453,78 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                         // jump live
                         edtReceive.setText(message);
                         volume = reponseHub.getVolume();
-                        playURLVideo(reponseHub.getMessage().trim(),false);
+                        playURLVideo(reponseHub.getMessage().trim(), false);
                         callBackUpdateList(false);
                         break;
                     case Status.UPDATE_STATUS:
                         pingHub(true);
                         break;
+                    case Status.GET_LOCATION:
+                        if (!MainActivity.this.isFinishing()) {
+                            // send ping_hub || update_status
+                            String date = simpleDateFormat.format(new Date());
+                            String strLocation = "";
+                            if(mlocation != null){
+                                strLocation = mlocation.getLatitude() + "-" +mlocation.getLongitude();
+                            }
+                            PingHubRequest  request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId())
+                                        .imei(Utils.getDeviceId(this))
+                                        .status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).message(strLocation).build();
+                                Log.d("requestlocation", new Gson().toJson(request));
+                                sendMessage(new Gson().toJson(request), Utils.DEVICE_LOCATION);
+
+                        }
+                        break;
                     case Status.SET_VOLUME:
                         try {
-                            mMediaPlayer.setVolume((int) Double.parseDouble(reponseHub.getMessage()));
+                            if(mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("rtsp")){
+                                mMediaPlayer.setVolume((int) Double.parseDouble(reponseHub.getMessage()));
+                            }else{
+                                exoPlayer.setVolume((int) Double.parseDouble(reponseHub.getMessage()));
+                            }
                             callBackUpdateList(false);
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
                         break;
                     case Status.STOP:
-                        mMediaPlayer.stop();
+                        try{
+                            if(mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("rtsp")){
+                                if(mMediaPlayer.isPlaying()){
+                                    mMediaPlayer.stop();
+                                }
+                            }else{
+                                try{
+                                    setPlayPause(false);
+                                }catch (Exception e){}
+                            }
+                        }catch (Exception e){}
                         callBackUpdateList(false);
                         break;
                     case Status.PAUSE:
-                        mMediaPlayer.pause();
+                        try{
+                            if(mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("rtsp")){
+                                if(mMediaPlayer.isPlaying()){
+                                    mMediaPlayer.pause();
+                                }
+                            }else{
+                                try{
+                                    setPlayPause(false);
+                                }catch (Exception e){}
+                            }
+                        }catch (Exception e){}
                         callBackUpdateList(false);
                         break;
                     case Status.START:
-                        mMediaPlayer.play();
+                        try{
+                            if(mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("rtsp")){
+                                mMediaPlayer.play();
+                            }else{
+                                try{
+                                    setPlayPause(true);
+                                }catch (Exception e){}
+                            }
+                        }catch (Exception e){}
                         callBackUpdateList(false);
                         break;
                     case Status.RESTART:
@@ -632,13 +647,15 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                     mainViewModel.lstLiveData.observe(this, this::createRecyclerView);
                 } else {
                     i = Utils.getCurrentPosition(mainViewModel.lstLiveData.getValue());
-                    Log.d("vao day 1","vao day 1" + i);
-                    if (i + 1 == mainViewModel.lstLiveData.getValue().size()) {
-                        playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(),true);
+                    Log.d("vao day 1", "vao day 1" + i);
+                    if (i == -1) {
                         i = 0;
                         initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), true);
+                    } else if (i == -2) {
+                        i = 0;
+                        initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
                     } else {
-                        playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(),true);
+                        playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(), true);
                         i = i + 1;
                         initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
                     }
@@ -649,6 +666,7 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
 
         }
     }
+
 
     public class TrackingTimer extends TimerTask {
         @Override
@@ -691,15 +709,35 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                 String date = simpleDateFormat.format(new Date());
                 PingHubRequest request = null;
                 if (isUpdate) {
-                    request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId())
-                            .imei(Utils.getDeviceId(this))
-                            .status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).volume(mMediaPlayer.getVolume() + "").build();
+                    if(mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("http")){
+                        request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId())
+                                .imei(Utils.getDeviceId(this))
+                                .status(isPlaying ? "START" : "STOP").startTine(date).volume(exoPlayer.getVolume() + "").build();
+                    }else{
+                        request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId())
+                                .imei(Utils.getDeviceId(this))
+                                .status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).volume(mMediaPlayer.getVolume() + "").build();
+                    }
+
                     Log.d("request", new Gson().toJson(request));
                     sendMessage(new Gson().toJson(request), Utils.device_info);
                 } else {
-                    Video video = new Video("" + i , "-1");
-                    request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId()).imei(Utils.getDeviceId(this)).
-                            status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).video(gson.toJson(video)).build();
+                    Video video = null;
+                      if(mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("http")){
+                          long time = 0;
+                          if(exoPlayer != null){
+                              time = exoPlayer.getDuration() - Utils.getTimeBettween(mainViewModel.lstLiveData.getValue().get(i).getStart(), Utils.getTimeCurrent());
+                              video = new Video("" + i, ""+ time);
+
+                          }
+                          request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId()).imei(Utils.getDeviceId(this)).
+                                  status(isPlaying ? "START" : "STOP").startTine(date).video(gson.toJson(video)).build();
+                      }else{
+                          video = new Video("" + i, "-1");
+                          request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId()).imei(Utils.getDeviceId(this)).
+                                  status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).video(gson.toJson(video)).build();
+                      }
+
                     Log.d("request", new Gson().toJson(request));
                     count_ping_hub = count_ping_hub + 1;
                     sendMessage(gson.toJson(request), Utils.ping_hub);
@@ -747,96 +785,48 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
             }
             if (videoURL.startsWith("fm") || videoURL.startsWith("am")) {
                 mMediaPlayer.stop();
+                if(exoPlayer != null){{
+                    setPlayPause(false);
+                }}
                 isFMAM = true;
                 String messageHub = videoURL;
                 Log.d(TAG, "FM ==> " + messageHub);
-                if (messageHub != null && messageHub.split(",").length > 2) {
-                    String[] status = messageHub.split(",");
-                    if (status.length > 2) {
-                        String mode = status[0];
-                        String frequency = status[1];
-                        volume = status[2];
-                        if (mode.equals("fm")) {
-                            //check case fm
-                            writeToDevice(buildWriteMessage(Define.FM, frequency));
-                        } else {
-                            // am
-                            writeToDevice(buildWriteMessage(Define.AM, frequency));
-                        }
-                    }
-                }
-            } else {
+                //check case fm
+                writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_PLAY_TUNNER,messageHub));
+            } else if(videoURL.startsWith("rtsp")) {
+                if(exoPlayer != null){{
+                    setPlayPause(false);
+                }}
                 mMediaPlayer.stop();
                 Media m = new Media(libvlc, Uri.parse(videoURL));
                 mMediaPlayer.setMedia(m);
                 mMediaPlayer.play();
-                if(!videoURL.startsWith("rtsp")){
-                    if(isRestart){
-                        mMediaPlayer.setPosition(Utils.getTimeBettween(mainViewModel.lstLiveData.getValue().get(i).getStart() , Utils.getTimeCurrent()) / mMediaPlayer.getLength());
-                    }
-                }
                 mMediaPlayer.setVolume(100);
                 isPlayVODOrLive = true;
-                writeToDevice(buildWriteMessage(Define.SOURCE_AUDIO, "2"));
-            }
-
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "Error Play URL Video: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    private void playURLVideoPosition(String videoURL, float position , boolean isRestart) {
-        try {
-            try {
-                for (int j = 0; j < mainViewModel.lstLiveData.getValue().size(); j++) {
-                    mainViewModel.lstLiveData.getValue().get(j).setCheck(false);
+                if(volume != null && !volume.isEmpty()){
+                    writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_PLAY_VOD_LIVE, volume));
+                }else{
+                    writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_PLAY_VOD_LIVE, "60"));
                 }
-                for (int k = 0; k < mainViewModel.lstLiveData.getValue().size(); k++) {
-                    if (mainViewModel.lstLiveData.getValue().get(k).getPath().equals(videoURL)) {
-                        mainViewModel.lstLiveData.getValue().get(k).setCheck(true);
-                        break;
-                    }
-                }
-                adapter.notifyDataSetChanged();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            if (videoURL.startsWith("fm") || videoURL.startsWith("am")) {
+            }else{
+                if(exoPlayer != null){{
+                    setPlayPause(false);
+                }}
                 mMediaPlayer.stop();
-                isFMAM = true;
-                String messageHub = videoURL;
-                Log.d(TAG, "FM ==> " + messageHub);
-                if (messageHub != null && messageHub.split(",").length > 2) {
-                    String[] status = messageHub.split(",");
-                    if (status.length > 2) {
-                        String mode = status[0];
-                        String frequency = status[1];
-                        volume = status[2];
-                        if (mode.equals("fm")) {
-                            //check case fm
-                            writeToDevice(buildWriteMessage(Define.FM, frequency));
-                        } else {
-                            // am
-                            writeToDevice(buildWriteMessage(Define.AM, frequency));
-                        }
-                    }
+                prepareExoPlayerFromURL(Uri.parse(videoURL));
+                if (isRestart) {
+                    exoPlayer.seekTo(Utils.getTimeBettween(mainViewModel.lstLiveData.getValue().get(i).getStart(), Utils.getTimeCurrent()));
+                    exoPlayer.setVolume(100);
+                    setPlayPause(true);
                 }
-            } else {
-                mMediaPlayer.stop();
-                Media m = new Media(libvlc, Uri.parse(videoURL));
-                mMediaPlayer.setMedia(m);
-                mMediaPlayer.setVolume(0);
-                mMediaPlayer.play();
-                if(!videoURL.startsWith("rtsp")){
-                    if(isRestart){
-                        //mMediaPlayer.setPosition(position);
-                    }
-                    mMediaPlayer.setTime((long)20000);
-                }
-                mMediaPlayer.setVolume(100);
+                exoPlayer.setVolume(100);
+                setPlayPause(true);
                 isPlayVODOrLive = true;
-                writeToDevice(buildWriteMessage(Define.SOURCE_AUDIO, "2"));
+                if(volume != null && !volume.isEmpty()){
+                    writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_PLAY_VOD_LIVE, volume));
+                }else{
+                    writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_PLAY_VOD_LIVE, "60"));
+                }
             }
 
         } catch (Exception e) {
@@ -892,28 +882,28 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
         Log.d(TAG, "dataFinal: " + data);
         if (data.endsWith("\r\n")) {
             if (data != null && !data.isEmpty() && data.startsWith("$$,")) {
-                try {
-                    String status = data.split(",")[1];
-                    Log.d(TAG, "status: " + status);
-                    String deviceAddress = data.split(",")[2];
-                    Log.d(TAG, "deviceAddress: " + deviceAddress);
-                    if (status.startsWith("128")) {
-                        // write fail
-                        processWriteCallBack(deviceAddress, false);
-                    } else if (status.startsWith("129")) {
-                    } else if (status.startsWith("130")) {
-                        // write success
-                        processWriteCallBack(deviceAddress, true);
-                    } else if (status.startsWith("131")) {
-                        try {
-                            String dataRead = data.split(",")[3];
-                            processReadCallBack(deviceAddress, dataRead);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                } catch (Exception e) {
-                }
+//                try {
+//                    String status = data.split(",")[1];
+//                    Log.d(TAG, "status: " + status);
+//                    String deviceAddress = data.split(",")[2];
+//                    Log.d(TAG, "deviceAddress: " + deviceAddress);
+//                    if (status.startsWith("128")) {
+//                        // write fail
+//                        processWriteCallBack(deviceAddress, false);
+//                    } else if (status.startsWith("129")) {
+//                    } else if (status.startsWith("130")) {
+//                        // write success
+//                        processWriteCallBack(deviceAddress, true);
+//                    } else if (status.startsWith("131")) {
+//                        try {
+//                            String dataRead = data.split(",")[3];
+//                            processReadCallBack(deviceAddress, dataRead);
+//                        } catch (Exception e) {
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                } catch (Exception e) {
+//                }
             }
         }
     }
@@ -1006,6 +996,12 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
     }
 
     // build message write to device
+    private String buildWriteMessageNew(String funtionId, String data) {
+        String s = "$$," + funtionId + "," + data + "," + "\r\n";
+        Log.d("requestdevice", s);
+        return s;
+    }
+
     private String buildWriteMessage(String command, String data) {
         String s = "$$," + 128 + "," + command + "," + data + "," + "\r\n";
         Log.d("requestdevice", s);
@@ -1022,7 +1018,7 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
     private void setVolumeToDevice(String mes) {
         if (outputStream != null) {
             try {
-                String mess = buildWriteMessage(Define.VOLUME, mes);
+                String mess = buildWriteMessage(Define.FUNC_WRITE_FORCE_SET_VOLUME, mes);
                 Log.d(TAG, mess);
                 outputStream.write(mess.getBytes());
             } catch (IOException e) {
@@ -1033,7 +1029,7 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
     private void onWatchDog() {
         if (outputStream != null) {
             try {
-                String mes = buildWriteMessage(Define.Watchdog, "10");
+                String mes = buildWriteMessageNew(Define.FUNC_WRITE_WATCH_DOG, "10");
                 outputStream.write(mes.getBytes());
             } catch (IOException e) {
             }
@@ -1076,19 +1072,16 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
             @Override
             public void onReceive(Context context, Intent intent) {
                 Log.i(TAG, "BroadcastReceiver::OnReceive()" + mainViewModel.lstLiveData.getValue().get(i).getStart());
-//                try {
-//                    mMediaPlayer.stop();
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                }
                 i = Utils.getCurrentPosition(mainViewModel.lstLiveData.getValue());
                 mMediaPlayer.stop();
-                if (i + 1 == mainViewModel.lstLiveData.getValue().size()) {
-                    playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(),false);
+                if (i == -1) {
                     i = 0;
                     initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), true);
+                } else if (i == -2) {
+                    i = 0;
+                    initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
                 } else {
-                    playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(),false);
+                    playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(), false);
                     i = i + 1;
                     initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
                 }
@@ -1106,5 +1099,198 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
 
     private void setPosVideo() {
         mMediaPlayer.setPosition(mMediaPlayer.getPosition() / mMediaPlayer.getLength());
+    }
+
+    private boolean checkPermissions() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            return true;
+        }
+        return false;
+    }
+
+    private void requestPermissions() {
+        ActivityCompat.requestPermissions(
+                this,
+                new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.READ_CONTACTS},
+                PERMISSION_ID
+        );
+    }
+
+    private void checkLocation() {
+        if (checkPermissions()) {
+            getLocation();
+        } else {
+            requestPermissions();
+        }
+    }
+
+    private void getLocation() {
+        LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        LocationListener locationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                mlocation = location;
+            }
+
+            @Override
+            public void onStatusChanged(String s, int i, Bundle bundle) {
+            }
+
+            @Override
+            public void onProviderEnabled(String s) {
+            }
+
+            @Override
+            public void onProviderDisabled(String s) {
+            }
+        };
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 100, 100, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 100, 100, locationListener);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case PERMISSION_ID:
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    getLocation();
+                }
+                break;
+        }
+
+    }
+
+
+
+
+
+    private void prepareExoPlayerFromURL(Uri uri){
+
+        TrackSelector trackSelector = new DefaultTrackSelector();
+
+        LoadControl loadControl = new DefaultLoadControl();
+
+        exoPlayer = ExoPlayerFactory.newSimpleInstance(this, trackSelector, loadControl);
+
+        DefaultDataSourceFactory dataSourceFactory = new DefaultDataSourceFactory(this, Util.getUserAgent(this, "exoplayer2example"), null);
+        ExtractorsFactory extractorsFactory = new DefaultExtractorsFactory();
+        MediaSource audioSource = new ExtractorMediaSource(uri, dataSourceFactory, extractorsFactory, null, null);
+        exoPlayer.addListener(eventListener);
+
+        exoPlayer.prepare(audioSource);
+        initMediaControls();
+    }
+
+
+
+    private void initMediaControls() {
+        initPlayButton();
+        initSeekBar();
+        initTxtTime();
+    }
+
+    private void initPlayButton() {
+        btnPlay = findViewById(R.id.btnPlay);
+        btnPlay.requestFocus();
+        btnPlay.setOnClickListener(view -> setPlayPause(!isPlaying));
+    }
+
+    /**
+     * Starts or stops playback. Also takes care of the Play/Pause button toggling
+     * @param play True if playback should be started
+     */
+    private void setPlayPause(boolean play){
+        isPlaying = play;
+        exoPlayer.setPlayWhenReady(play);
+        if(!isPlaying){
+            btnPlay.setImageResource(android.R.drawable.ic_media_play);
+        }else{
+            setProgress();
+            btnPlay.setImageResource(android.R.drawable.ic_media_pause);
+        }
+    }
+
+    private void initTxtTime() {
+        txtCurrentTime = findViewById(R.id.time_current);
+        txtEndTime = findViewById(R.id.player_end_time);
+    }
+
+    private String stringForTime(int timeMs) {
+        StringBuilder mFormatBuilder;
+        Formatter mFormatter;
+        mFormatBuilder = new StringBuilder();
+        mFormatter = new Formatter(mFormatBuilder, Locale.getDefault());
+        int totalSeconds =  timeMs / 1000;
+
+        int seconds = totalSeconds % 60;
+        int minutes = (totalSeconds / 60) % 60;
+        int hours   = totalSeconds / 3600;
+
+        mFormatBuilder.setLength(0);
+        if (hours > 0) {
+            return mFormatter.format("%d:%02d:%02d", hours, minutes, seconds).toString();
+        } else {
+            return mFormatter.format("%02d:%02d", minutes, seconds).toString();
+        }
+    }
+
+    private void setProgress() {
+        seekPlayerProgress.setProgress(0);
+        seekPlayerProgress.setMax((int) exoPlayer.getDuration()/1000);
+        txtCurrentTime.setText(stringForTime((int)exoPlayer.getCurrentPosition()));
+        txtEndTime.setText(stringForTime((int)exoPlayer.getDuration()));
+        if(handler == null)handler = new Handler();
+        //Make sure you update Seekbar on UI thread
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (exoPlayer != null && isPlaying) {
+                    seekPlayerProgress.setMax((int) exoPlayer.getDuration()/1000);
+                    int mCurrentPosition = (int) exoPlayer.getCurrentPosition() / 1000;
+                    seekPlayerProgress.setProgress(mCurrentPosition);
+                    txtCurrentTime.setText(stringForTime((int)exoPlayer.getCurrentPosition()));
+                    txtEndTime.setText(stringForTime((int)exoPlayer.getDuration()));
+
+                    handler.postDelayed(this, 1000);
+                }
+            }
+        });
+    }
+
+    private void initSeekBar() {
+        seekPlayerProgress = findViewById(R.id.mediacontroller_progress);
+        seekPlayerProgress.requestFocus();
+
+        seekPlayerProgress.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (!fromUser) {
+                    // We're not interested in programmatically generated changes to
+                    // the progress bar's position.
+                    return;
+                }
+
+                exoPlayer.seekTo(progress*1000);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
+
+        seekPlayerProgress.setMax(0);
+        seekPlayerProgress.setMax((int) exoPlayer.getDuration()/1000);
     }
 }

@@ -64,7 +64,7 @@ public class MainViewModel extends ViewModel {
         if(list == null){
             return null;
         }
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm:ss");
+//        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm:ss");
         //fake data
 //        for(int j = 0 ; j < list.size(); j++){
 //            list.get(j).setDuration("00:01:00");

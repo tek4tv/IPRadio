@@ -24,4 +24,13 @@ public class Define {
     public final static String Watchdog_R = "08";
 
     public final static long delay = 35l;
+
+    public final static String FUNC_WRITE_PLAY_VOD_LIVE = "0";
+    public final static String FUNC_WRITE_PLAY_TUNNER = "1";
+    public final static String FUNC_WRITE_FORCE_SET_VOLUME = "2";
+    public final static String FUNC_WRITE_FORCE_SET_PA = "3";
+    public final static String FUNC_WRITE_READ_STATUS_PARAM = "4";
+    public final static String FUNC_WRITE_READ_DEVICE_INFO = "5";
+    public final static String FUNC_WRITE_WATCH_DOG = "6";
+
 }

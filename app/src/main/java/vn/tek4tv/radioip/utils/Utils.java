@@ -4,7 +4,6 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Build;
 import android.provider.Settings;
-import android.util.Log;
 
 import androidx.annotation.RequiresApi;
 
@@ -24,6 +23,7 @@ public class Utils {
     public static final String callback_hub = "CALLBACK_HUB";
     public static final String ping_hub = "PING_HUB";
     public static final String device_info = "DEVICE_INFO";
+    public static final String DEVICE_LOCATION = "DEVICE_LOCATION";
     public static final String current_playlist = "CURRENT_PLAYLIST";
     public static final String CURRENT_VOLUME = "CURRENT_VOLUME";
     public static final String CURRENT_SOURCE = "CURRENT_SOURCE";
@@ -72,6 +72,7 @@ public class Utils {
         if(list == null || list.size() == 0){
             return 0;
         }
+        boolean isCheck = false;
         try{
             for(int i = 0 ; i < list.size() ; i++){
                 Date dateStartOld = simpleDateFormat.parse(list.get(i).getStart());
@@ -99,10 +100,27 @@ public class Utils {
                     return i;
                 }
             }
+            if(!isCheck){
+                Date dateStartOld = simpleDateFormat.parse(list.get(0).getStart());
+                Calendar calDateStart = Calendar.getInstance();
+                calDateStart.setTime(dateStartOld);
+                Calendar dateStartNow  = Calendar.getInstance();
+                dateStartNow.set(Calendar.YEAR, Calendar.getInstance().get(Calendar.YEAR));
+                dateStartNow.set(Calendar.MONTH, Calendar.getInstance().get(Calendar.MONTH));
+                dateStartNow.set(Calendar.DAY_OF_MONTH, Calendar.getInstance().get(Calendar.DAY_OF_MONTH));
+                dateStartNow.set(Calendar.HOUR_OF_DAY, calDateStart.get(Calendar.HOUR_OF_DAY));
+                dateStartNow.set(Calendar.MINUTE, calDateStart.get(Calendar.MINUTE));
+                dateStartNow.set(Calendar.SECOND, calDateStart.get(Calendar.SECOND));
+                Date date = new Date();
+                if(date.before(dateStartNow.getTime()) && date.compareTo(dateStartNow.getTime()) != 0){
+                    return -2;
+                }
+            }
+
         }catch (Exception e){
             e.printStackTrace();
         }
-        return list.size() - 1;
+        return -1;
     }
 
     public static String getTimeCurrent(){

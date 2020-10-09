@@ -22,4 +22,5 @@ public class Status {
     public static final String GET_FM_FQ = "GET_FM_FQ";
     public static final String GET_AM_FQ = "GET_AM_FQ";
     public static final String GET_TEMPERATURE = "GET_TEMPERATURE";
+    public static final String GET_LOCATION = "GET_LOCATION";
 }
