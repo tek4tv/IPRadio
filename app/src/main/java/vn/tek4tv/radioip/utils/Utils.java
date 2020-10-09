@@ -35,7 +35,6 @@ public class Utils {
     @SuppressLint("HardwareIds")
     public static String getDeviceId(Context context) {
         String deviceId = ConfigUtil.getString(context, DEVICE_ID, null);
-        Log.d("sanhtq", deviceId);
         if (deviceId == null) {
             deviceId = getMacAddr();
             ConfigUtil.putString(context, DEVICE_ID, deviceId);
