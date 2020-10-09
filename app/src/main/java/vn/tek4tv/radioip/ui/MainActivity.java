@@ -245,9 +245,37 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
          */
 
         @JavascriptInterface
-        public void goToDetail(String url,float position,boolean isLive) {
+        public void goToDetail(String url, float position, boolean isLive) {
             Log.d("position", String.valueOf(position));
             playURLVideoPosition(url, position, isLive);
+        }
+
+        @JavascriptInterface
+        public void switchToTuner(String messageHub, boolean ipMode) {
+            Log.d("FM mode:", messageHub);
+            if (ipMode) {
+                isPlayVODOrLive = true;
+                isFMAM = false;
+                writeToDevice(buildWriteMessage(Define.SOURCE_AUDIO, "2"));
+            } else {
+                isFMAM = true;
+                isPlayVODOrLive = false;
+                if (messageHub != null && messageHub.split(",").length > 2) {
+                    String[] status = messageHub.split(",");
+                    if (status.length > 2) {
+                        String mode = status[0];
+                        String frequency = status[1];
+                        volume = status[2];
+                        if (mode.equals("fm")) {
+                            //check case fm
+                            writeToDevice(buildWriteMessage(Define.FM, frequency));
+                        } else {
+                            // am
+                            writeToDevice(buildWriteMessage(Define.AM, frequency));
+                        }
+                    }
+                }
+            }
         }
     }
 
