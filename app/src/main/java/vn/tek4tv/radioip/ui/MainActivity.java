@@ -432,30 +432,12 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                         isFMAM = true;
                         String messageHub = reponseHub.getMessage();
                         Log.d(TAG, "FM ==> " + messageHub);
-                        if (messageHub != null && messageHub.split(",").length > 2) {
-                            String[] status = messageHub.split(",");
-                            if (status.length > 2) {
-                                String mode = status[0];
-                                String frequency = status[1];
-                                volume = status[2];
-                                if (mode.equals("fm")) {
-                                    //check case fm
-                                    writeToDevice(buildWriteMessage(Define.FM, frequency));
-                                } else {
-                                    // am
-                                    writeToDevice(buildWriteMessage(Define.AM, frequency));
-                                }
-                            }
-                        }
+                        writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_PLAY_TUNNER_FORCE, reponseHub.getMessage()));
                         break;
                     case Status.SET_MUTE_DEVICE:
                         edtReceive.setText(message);
                         // 0 de tat tieng, 1 de bat tieng
-                        if (reponseHub.getMessage().equals("0")) {
-                            writeToDevice(buildWriteMessage(Define.Mute, "0"));
-                        } else {
-                            writeToDevice(buildWriteMessage(Define.Mute, "1"));
-                        }
+                        writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_FORCE_SET_MUTE, reponseHub.getMessage()));
                         break;
                     case Status.SET_VOLUME_DEVICE:
                         edtReceive.setText(message);
@@ -907,7 +889,7 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
     private void onWatchDog() {
         if (outputStream != null) {
             try {
-                String mes = buildWriteMessageNew(Define.FUNC_WRITE_WATCH_DOG, "10");
+                String mes = count_ping_hub == 0 ? buildWriteMessageNew(Define.FUNC_WRITE_WATCH_DOG, "1") : buildWriteMessageNew(Define.FUNC_WRITE_WATCH_DOG, "2");
                 outputStream.write(mes.getBytes());
             } catch (IOException e) {
             }
