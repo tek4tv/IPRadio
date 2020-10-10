@@ -111,12 +111,6 @@
             android:layout_height="wrap_content"
             android:hint="receive BE" />
 
-        <EditText
-            android:id="@+id/edtReceiveDevice"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="receive device" />
-
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/webDetail"
             android:layout_width="match_parent"

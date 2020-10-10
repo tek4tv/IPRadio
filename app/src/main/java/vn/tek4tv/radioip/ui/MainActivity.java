@@ -32,26 +32,6 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.exoplayer2.DefaultLoadControl;
-import com.google.android.exoplayer2.ExoPlaybackException;
-import com.google.android.exoplayer2.ExoPlayer;
-import com.google.android.exoplayer2.ExoPlayerFactory;
-import com.google.android.exoplayer2.LoadControl;
-import com.google.android.exoplayer2.SimpleExoPlayer;
-import com.google.android.exoplayer2.Timeline;
-import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
-import com.google.android.exoplayer2.extractor.ExtractorsFactory;
-import com.google.android.exoplayer2.source.ExtractorMediaSource;
-import com.google.android.exoplayer2.source.MediaSource;
-import com.google.android.exoplayer2.source.TrackGroupArray;
-import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
-import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
-import com.google.android.exoplayer2.trackselection.TrackSelector;
-import com.google.android.exoplayer2.upstream.DataSource;
-import com.google.android.exoplayer2.upstream.DataSpec;
-import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
-import com.google.android.exoplayer2.upstream.FileDataSource;
-import com.google.android.exoplayer2.util.Util;
 import com.google.gson.Gson;
 import com.microsoft.signalr.HubConnection;
 import com.microsoft.signalr.HubConnectionBuilder;
@@ -142,59 +122,6 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
     private final int PERMISSION_ID = 44;
     private Location mlocation;
 
-    // player vod
-    private SimpleExoPlayer exoPlayer;
-    private ExoPlayer.EventListener eventListener = new ExoPlayer.EventListener() {
-
-
-        @Override
-        public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
-            Log.i(TAG,"onTracksChanged");
-        }
-
-        @Override
-        public void onLoadingChanged(boolean isLoading) {
-            Log.i(TAG,"onLoadingChanged");
-        }
-
-        @Override
-        public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
-            Log.i(TAG,"onPlayerStateChanged: playWhenReady = "+String.valueOf(playWhenReady)
-                    +" playbackState = "+playbackState);
-            switch (playbackState){
-                case ExoPlayer.STATE_ENDED:
-                    Log.i(TAG,"Playback ended!");
-                    //Stop playback and return to start position
-                    setPlayPause(false);
-                    exoPlayer.seekTo(0);
-                    break;
-                case ExoPlayer.STATE_READY:
-                    Log.i(TAG,"ExoPlayer ready! pos: "+exoPlayer.getCurrentPosition()
-                            +" max: "+stringForTime((int)exoPlayer.getDuration()));
-                    setProgress();
-                    break;
-                case ExoPlayer.STATE_BUFFERING:
-                    Log.i(TAG,"Playback buffering!");
-                    break;
-                case ExoPlayer.STATE_IDLE:
-                    Log.i(TAG,"ExoPlayer idle!");
-                    break;
-            }
-        }
-
-        @Override
-        public void onPlayerError(ExoPlaybackException error) {
-            Log.i(TAG,"onPlaybackError: "+error.getMessage());
-        }
-
-
-    };
-
-    private SeekBar seekPlayerProgress;
-    private Handler handler;
-    private ImageButton btnPlay;
-    private TextView txtCurrentTime, txtEndTime;
-    private boolean isPlaying = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -319,8 +246,13 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
             initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
         } else {
             playURLVideo(devicesList.get(i).getPath(), true);
-            i = i + 1;
-            initAlarm(devicesList.get(i).getStart(), false);
+            if (i + 1 == mainViewModel.lstLiveData.getValue().size()) {
+                i = 0;
+                initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), true);
+            } else {
+                i = i + 1;
+                initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
+            }
         }
         if (adapter != null) {
             adapter.setLstDevices(devicesList);
@@ -380,7 +312,6 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
             mTimerWatchlog.cancel();
         hubConnection = null;
         releasePlayer();
-        exoPlayer.release();
         if (myBroadcastReceiver != null) {
             unregisterReceiver(myBroadcastReceiver);
         }
@@ -429,6 +360,7 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                     case Status.UPDATE_LIST:
                         unregisterAlarmBroadcast();
                         mainViewModel.getPlayList(this);
+                        mainViewModel.getPlayList(this);
                         mainViewModel.lstLiveData.observe(this, this::createRecyclerView);
                         callBackUpdateList(true);
                         break;
@@ -461,70 +393,36 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                         break;
                     case Status.GET_LOCATION:
                         if (!MainActivity.this.isFinishing()) {
-                            // send ping_hub || update_status
                             String date = simpleDateFormat.format(new Date());
                             String strLocation = "";
-                            if(mlocation != null){
-                                strLocation = mlocation.getLatitude() + "-" +mlocation.getLongitude();
+                            if (mlocation != null) {
+                                strLocation = mlocation.getLatitude() + "-" + mlocation.getLongitude();
                             }
-                            PingHubRequest  request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId())
-                                        .imei(Utils.getDeviceId(this))
-                                        .status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).message(strLocation).build();
-                                Log.d("requestlocation", new Gson().toJson(request));
-                                sendMessage(new Gson().toJson(request), Utils.DEVICE_LOCATION);
+                            PingHubRequest request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId())
+                                    .imei(Utils.getDeviceId(this))
+                                    .status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).message(strLocation).build();
+                            Log.d("requestlocation", new Gson().toJson(request));
+                            sendMessage(new Gson().toJson(request), Utils.DEVICE_LOCATION);
 
                         }
                         break;
                     case Status.SET_VOLUME:
-                        try {
-                            if(mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("rtsp")){
-                                mMediaPlayer.setVolume((int) Double.parseDouble(reponseHub.getMessage()));
-                            }else{
-                                exoPlayer.setVolume((int) Double.parseDouble(reponseHub.getMessage()));
-                            }
-                            callBackUpdateList(false);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
+                        mMediaPlayer.setVolume((int) Double.parseDouble(reponseHub.getMessage()));
                         break;
                     case Status.STOP:
-                        try{
-                            if(mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("rtsp")){
-                                if(mMediaPlayer.isPlaying()){
-                                    mMediaPlayer.stop();
-                                }
-                            }else{
-                                try{
-                                    setPlayPause(false);
-                                }catch (Exception e){}
-                            }
-                        }catch (Exception e){}
+                        if (mMediaPlayer.isPlaying()) {
+                            mMediaPlayer.stop();
+                        }
                         callBackUpdateList(false);
                         break;
                     case Status.PAUSE:
-                        try{
-                            if(mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("rtsp")){
-                                if(mMediaPlayer.isPlaying()){
-                                    mMediaPlayer.pause();
-                                }
-                            }else{
-                                try{
-                                    setPlayPause(false);
-                                }catch (Exception e){}
-                            }
-                        }catch (Exception e){}
+                        if (mMediaPlayer.isPlaying()) {
+                            mMediaPlayer.pause();
+                        }
                         callBackUpdateList(false);
                         break;
                     case Status.START:
-                        try{
-                            if(mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("rtsp")){
-                                mMediaPlayer.play();
-                            }else{
-                                try{
-                                    setPlayPause(true);
-                                }catch (Exception e){}
-                            }
-                        }catch (Exception e){}
+                        mMediaPlayer.play();
                         callBackUpdateList(false);
                         break;
                     case Status.RESTART:
@@ -656,8 +554,13 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                         initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
                     } else {
                         playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(), true);
-                        i = i + 1;
-                        initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
+                        if (i + 1 == mainViewModel.lstLiveData.getValue().size()) {
+                            i = 0;
+                            initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), true);
+                        } else {
+                            i = i + 1;
+                            initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -709,34 +612,32 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                 String date = simpleDateFormat.format(new Date());
                 PingHubRequest request = null;
                 if (isUpdate) {
-                    if(mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("http")){
-                        request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId())
-                                .imei(Utils.getDeviceId(this))
-                                .status(isPlaying ? "START" : "STOP").startTine(date).volume(exoPlayer.getVolume() + "").build();
-                    }else{
-                        request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId())
-                                .imei(Utils.getDeviceId(this))
-                                .status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).volume(mMediaPlayer.getVolume() + "").build();
-                    }
-
+                    request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId())
+                            .imei(Utils.getDeviceId(this))
+                            .status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).volume(mMediaPlayer.getVolume() + "").build();
                     Log.d("request", new Gson().toJson(request));
                     sendMessage(new Gson().toJson(request), Utils.device_info);
                 } else {
                     Video video = null;
-                      if(mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("http")){
-                          long time = 0;
-                          if(exoPlayer != null){
-                              time = exoPlayer.getDuration() - Utils.getTimeBettween(mainViewModel.lstLiveData.getValue().get(i).getStart(), Utils.getTimeCurrent());
-                              video = new Video("" + i, ""+ time);
-
-                          }
-                          request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId()).imei(Utils.getDeviceId(this)).
-                                  status(isPlaying ? "START" : "STOP").startTine(date).video(gson.toJson(video)).build();
-                      }else{
-                          video = new Video("" + i, "-1");
-                          request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId()).imei(Utils.getDeviceId(this)).
-                                  status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).video(gson.toJson(video)).build();
-                      }
+                    i = Utils.getCurrentPosition(mainViewModel.lstLiveData.getValue());
+                    if(i >= 0 && i < mainViewModel.lstLiveData.getValue().size()){
+                        if (mainViewModel.lstLiveData.getValue().get(i).getPath().startsWith("http")) {
+                            if (mMediaPlayer != null) {
+                                long time = mMediaPlayer.getLength() - Utils.getTimeBettween(mainViewModel.lstLiveData.getValue().get(i).getStart(), Utils.getTimeCurrent());
+                                video = new Video("" + i, "" + time);
+                            }
+                            request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId()).imei(Utils.getDeviceId(this)).
+                                    status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).video(gson.toJson(video)).build();
+                        } else {
+                            video = new Video("" + i, "-1");
+                            request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId()).imei(Utils.getDeviceId(this)).
+                                    status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).video(gson.toJson(video)).build();
+                        }
+                    }else{
+                        video = new Video("" + i, "-1");
+                        request = PingHubRequest.builder().connectionId(hubConnection.getConnectionId()).imei(Utils.getDeviceId(this)).
+                                status(mMediaPlayer.isPlaying() ? "START" : "STOP").startTine(date).video(gson.toJson(video)).build();
+                    }
 
                     Log.d("request", new Gson().toJson(request));
                     count_ping_hub = count_ping_hub + 1;
@@ -779,56 +680,33 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                         break;
                     }
                 }
-                adapter.notifyDataSetChanged();
+                if(adapter != null){
+                    adapter.notifyDataSetChanged();
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
             if (videoURL.startsWith("fm") || videoURL.startsWith("am")) {
                 mMediaPlayer.stop();
-                if(exoPlayer != null){{
-                    setPlayPause(false);
-                }}
                 isFMAM = true;
                 String messageHub = videoURL;
                 Log.d(TAG, "FM ==> " + messageHub);
                 //check case fm
-                writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_PLAY_TUNNER,messageHub));
-            } else if(videoURL.startsWith("rtsp")) {
-                if(exoPlayer != null){{
-                    setPlayPause(false);
-                }}
+                writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_PLAY_TUNNER, messageHub));
+            } else if (videoURL.startsWith("rtsp") || videoURL.startsWith("http")) {
                 mMediaPlayer.stop();
                 Media m = new Media(libvlc, Uri.parse(videoURL));
                 mMediaPlayer.setMedia(m);
                 mMediaPlayer.play();
+                if (isRestart) {
+                    mMediaPlayer.setTime(Utils.getTimeBettween(mainViewModel.lstLiveData.getValue().get(i).getStart(), Utils.getTimeCurrent()));
+                }
                 mMediaPlayer.setVolume(100);
                 isPlayVODOrLive = true;
-                if(volume != null && !volume.isEmpty()){
+                if (volume != null && !volume.isEmpty()) {
                     writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_PLAY_VOD_LIVE, volume));
-                }else{
-                    writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_PLAY_VOD_LIVE, "60"));
-                }
-            }else{
-                if(exoPlayer != null){{
-                    setPlayPause(false);
-                }}
-                mMediaPlayer.stop();
-                prepareExoPlayerFromURL(Uri.parse(videoURL));
-                if (isRestart) {
-                    exoPlayer.seekTo(Utils.getTimeBettween(mainViewModel.lstLiveData.getValue().get(i).getStart(), Utils.getTimeCurrent()));
-                    exoPlayer.setVolume(100);
-                    setPlayPause(true);
-                }
-                exoPlayer.setVolume(100);
-                setPlayPause(true);
-                isPlayVODOrLive = true;
-                if(volume != null && !volume.isEmpty()){
-                    writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_PLAY_VOD_LIVE, volume));
-                }else{
-                    writeToDevice(buildWriteMessageNew(Define.FUNC_WRITE_PLAY_VOD_LIVE, "60"));
                 }
             }
-
         } catch (Exception e) {
             Log.e(LOG_TAG, "Error Play URL Video: " + e.getMessage());
             e.printStackTrace();
@@ -1082,8 +960,13 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
                     initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
                 } else {
                     playURLVideo(mainViewModel.lstLiveData.getValue().get(i).getPath(), false);
-                    i = i + 1;
-                    initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
+                    if (i + 1 == mainViewModel.lstLiveData.getValue().size()) {
+                        i = 0;
+                        initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), true);
+                    } else {
+                        i = i + 1;
+                        initAlarm(mainViewModel.lstLiveData.getValue().get(i).getStart(), false);
+                    }
                 }
             }
         };
@@ -1167,130 +1050,4 @@ public class MainActivity extends AppCompatActivity implements PlayListAdapter.O
     }
 
 
-
-
-
-    private void prepareExoPlayerFromURL(Uri uri){
-
-        TrackSelector trackSelector = new DefaultTrackSelector();
-
-        LoadControl loadControl = new DefaultLoadControl();
-
-        exoPlayer = ExoPlayerFactory.newSimpleInstance(this, trackSelector, loadControl);
-
-        DefaultDataSourceFactory dataSourceFactory = new DefaultDataSourceFactory(this, Util.getUserAgent(this, "exoplayer2example"), null);
-        ExtractorsFactory extractorsFactory = new DefaultExtractorsFactory();
-        MediaSource audioSource = new ExtractorMediaSource(uri, dataSourceFactory, extractorsFactory, null, null);
-        exoPlayer.addListener(eventListener);
-
-        exoPlayer.prepare(audioSource);
-        initMediaControls();
-    }
-
-
-
-    private void initMediaControls() {
-        initPlayButton();
-        initSeekBar();
-        initTxtTime();
-    }
-
-    private void initPlayButton() {
-        btnPlay = findViewById(R.id.btnPlay);
-        btnPlay.requestFocus();
-        btnPlay.setOnClickListener(view -> setPlayPause(!isPlaying));
-    }
-
-    /**
-     * Starts or stops playback. Also takes care of the Play/Pause button toggling
-     * @param play True if playback should be started
-     */
-    private void setPlayPause(boolean play){
-        isPlaying = play;
-        exoPlayer.setPlayWhenReady(play);
-        if(!isPlaying){
-            btnPlay.setImageResource(android.R.drawable.ic_media_play);
-        }else{
-            setProgress();
-            btnPlay.setImageResource(android.R.drawable.ic_media_pause);
-        }
-    }
-
-    private void initTxtTime() {
-        txtCurrentTime = findViewById(R.id.time_current);
-        txtEndTime = findViewById(R.id.player_end_time);
-    }
-
-    private String stringForTime(int timeMs) {
-        StringBuilder mFormatBuilder;
-        Formatter mFormatter;
-        mFormatBuilder = new StringBuilder();
-        mFormatter = new Formatter(mFormatBuilder, Locale.getDefault());
-        int totalSeconds =  timeMs / 1000;
-
-        int seconds = totalSeconds % 60;
-        int minutes = (totalSeconds / 60) % 60;
-        int hours   = totalSeconds / 3600;
-
-        mFormatBuilder.setLength(0);
-        if (hours > 0) {
-            return mFormatter.format("%d:%02d:%02d", hours, minutes, seconds).toString();
-        } else {
-            return mFormatter.format("%02d:%02d", minutes, seconds).toString();
-        }
-    }
-
-    private void setProgress() {
-        seekPlayerProgress.setProgress(0);
-        seekPlayerProgress.setMax((int) exoPlayer.getDuration()/1000);
-        txtCurrentTime.setText(stringForTime((int)exoPlayer.getCurrentPosition()));
-        txtEndTime.setText(stringForTime((int)exoPlayer.getDuration()));
-        if(handler == null)handler = new Handler();
-        //Make sure you update Seekbar on UI thread
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (exoPlayer != null && isPlaying) {
-                    seekPlayerProgress.setMax((int) exoPlayer.getDuration()/1000);
-                    int mCurrentPosition = (int) exoPlayer.getCurrentPosition() / 1000;
-                    seekPlayerProgress.setProgress(mCurrentPosition);
-                    txtCurrentTime.setText(stringForTime((int)exoPlayer.getCurrentPosition()));
-                    txtEndTime.setText(stringForTime((int)exoPlayer.getDuration()));
-
-                    handler.postDelayed(this, 1000);
-                }
-            }
-        });
-    }
-
-    private void initSeekBar() {
-        seekPlayerProgress = findViewById(R.id.mediacontroller_progress);
-        seekPlayerProgress.requestFocus();
-
-        seekPlayerProgress.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (!fromUser) {
-                    // We're not interested in programmatically generated changes to
-                    // the progress bar's position.
-                    return;
-                }
-
-                exoPlayer.seekTo(progress*1000);
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-
-            }
-        });
-
-        seekPlayerProgress.setMax(0);
-        seekPlayerProgress.setMax((int) exoPlayer.getDuration()/1000);
-    }
 }
