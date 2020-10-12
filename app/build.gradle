@@ -65,7 +65,7 @@ dependencies {
     // view model
     // retrofit
     implementation "com.squareup.retrofit2:adapter-rxjava2:$rootProject.rxVersion"
-    implementation 'com.microsoft.signalr:signalr:3.0.0'
+//    implementation 'com.microsoft.signalr:signalr:3.0.0'
     implementation group: 'org.slf4j', name: 'slf4j-android', version: '1.7.7'
     compileOnly 'org.projectlombok:lombok:1.18.12'
     annotationProcessor 'org.projectlombok:lombok:1.18.12'
